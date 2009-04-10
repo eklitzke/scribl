@@ -1,0 +1,6 @@
+test_counter
+*.o
+# Emacs crap below
+*~
+.#*
+\#*#
