@@ -11,4 +11,7 @@ clean:
 	-rm -f *.o
 	-rm -f test_counter
 
-.PHONY: all clean
+doc:
+	make -C doc
+
+.PHONY: all clean doc

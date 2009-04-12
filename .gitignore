@@ -1,5 +1,7 @@
 test_counter
 *.o
+doc/html/
+doc/latex/
 # Emacs crap below
 *~
 .#*
