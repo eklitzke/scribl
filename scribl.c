@@ -3,7 +3,6 @@
 
 #include <glib.h>
 #include <stdio.h>
-#include <sys/time.h>
 
 static gpointer serialize_ht(gpointer data);
 static gpointer event_worker(gpointer data);
@@ -144,10 +143,10 @@ gpointer event_worker(gpointer data)
 	struct scribl_counter *counter;
 
 	/* The start and end time, used for timing the loop. */
-	struct timeval ts, te;
+	GTimeVal ts, te;
 
 	while (1) {
-		gettimeofday(&ts, NULL);
+		g_get_current_time(&ts);
 
 		/* Lock the global counter list. No new counters may be created while
 		 * this lock is held.
@@ -176,7 +175,7 @@ gpointer event_worker(gpointer data)
 
 		g_mutex_unlock(counter_list_access);
 
-		gettimeofday(&te, NULL);
+		g_get_current_time(&te);
 
 		/* Since the work done by this thread should be done quickly, it's
 		 * likely that it will take much less than a second. */
