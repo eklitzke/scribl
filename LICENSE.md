@@ -1,5 +1,15 @@
-This code is copyright Evan Klitkze, 2009 <evan@eklitzke.org>
+Copyright (C) 2009, Evan Klitzke <evan@eklitzke.org>
 
-This code is currently licensed under the terms of the GPL, version 3. You can
-find the full text of that license online at
-[gnu.org](http://www.gnu.org/licenses/gpl-3.0.txt).
+This program is free software: you can redistribute it and/or modify it under
+the terms of version 3 of the GNU General Public License as published by the
+Free Software Foundation. Note that some GPL software contains a clause allowing
+you to "upgrade" to a later version of the GPL -- scribl does not contain such
+an upgrade clause, you *must* use this software under version 3 of the GPL, and
+no other version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <http://www.gnu.org/licenses/>.

@@ -9,14 +9,11 @@ scribl.o: scribl.h scribl.c
 test: test.c scribl.o reverse_sem.o
 	gcc -g -o test test.c $$(pkg-config glib-2.0 --cflags --libs) $$(pkg-config --libs gthread-2.0) scribl.o reverse_sem.o
 
-test_counter: test_counter.c scribl.o reverse_sem.o
-	gcc -g -o test_counter test_counter.c $$(pkg-config glib-2.0 --cflags --libs) $$(pkg-config --libs gthread-2.0) scribl.o reverse_sem.o
-
 clean:
 	-rm -f *.o
 	-rm -f test_counter
 
 doc:
-	doxygen doc/scribl.doxy
+	doxygen doc/Doxyfile
 
 .PHONY: all clean doc
