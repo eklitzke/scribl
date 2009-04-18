@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 static gpointer serialize_ht(gpointer data);
-static gpointer event_worker(gpointer data);
+static gpointer event_loop_worker(gpointer data);
 
 static GMutex *counter_list_access;
 static GSList *counter_list;
@@ -27,13 +27,15 @@ void scribl_init()
 	counter_list = g_slist_alloc();
 
 	/* Spawn a new event-loop thread. */
-	g_thread_create(event_worker, NULL, 0, NULL);
+	g_thread_create(event_loop_worker, NULL, 0, NULL);
 }
 
 void scribl_exit()
 {
 	g_reverse_semaphore_destroy(scribl_exit_semaphore);
 	scribl_exit_semaphore = NULL;
+
+	/* TODO? notify the event-loop of impending doom. */
 }
 
 static void val_guint_free(gpointer data)
@@ -60,7 +62,6 @@ struct scribl_counter* scribl_new_counter()
 /* This locks the mutex on counter, but does *NOT* unlock it. */
 static gpointer get_val_ptr(struct scribl_counter *counter, char *key)
 {
-	GHashTable *sub;
 	gchar *key_cpy;
 	gpointer *val;
 
@@ -79,20 +80,17 @@ static gpointer get_val_ptr(struct scribl_counter *counter, char *key)
 }
 
 /* This increments a key in for ht[major][minor] */
-void scribl_incr_counter(struct scribl_counter *counter, char *key)
+void scribl_incr_counter(struct scribl_counter *counter, char *key, double incr)
 {
-	guint *val;
+	double *current_val;
 
-	val = get_val_ptr(counter, key);
-	(*val)++;
+	current_val = get_val_ptr(counter, key);
+	*current_val += incr;
 	g_mutex_unlock(counter->lock);
 }
 
 void scribl_free_counter(struct scribl_counter *counter)
 {
-	GHashTableIter iter_i, iter_j;
-	gpointer key_i, value_i, key_j, value_j;
-
 	/* Remove from the global list first */
 	g_mutex_lock(counter_list_access);
 	counter_list = g_slist_remove(counter_list, counter);
@@ -107,10 +105,9 @@ void scribl_free_counter(struct scribl_counter *counter)
 	g_slice_free(struct scribl_counter, counter);
 }
 
-guint scribl_lookup_counter(struct scribl_counter *counter, char *key)
+double scribl_lookup_counter(struct scribl_counter *counter, char *key)
 {
-	GHashTable *sub;
-	guint *val;
+	double *val;
 
 	g_mutex_lock(counter->lock);
 	val = g_hash_table_lookup(counter->ht, key);
@@ -126,16 +123,15 @@ gpointer serialize_ht(gpointer data)
 
 	g_hash_table_iter_init(&iter, (GHashTable *) data);
 	while (g_hash_table_iter_next(&iter, &key, &value)) {
-		printf("serializing %p: %s -> %d\n", data, (char *) key, *((guint *) value));
+		printf("serializing %p: %s -> %1.2f\n", data, (char *) key, *((double *) value));
 	}
 	g_hash_table_destroy((GHashTable *) data);
 	return NULL;
 }
 
 /* This represents a thread that occasionally serializes data structures. */
-gpointer event_worker(gpointer data)
+static gpointer event_loop_worker(gpointer data)
 {
-	gulong sleep_interval;
 	gulong sleep_duration = 5 * G_USEC_PER_SEC;
 	gulong time_elapsed;
 	GHashTable *new_ht, *old_ht;
@@ -145,7 +141,13 @@ gpointer event_worker(gpointer data)
 	/* The start and end time, used for timing the loop. */
 	GTimeVal ts, te;
 
+	/* Wait for the sleep duration before entering the loop, to avoid racing
+	 * with code that creates counters immediately after invoking
+	 * scribl_init. */
+	g_usleep(sleep_duration);
+
 	while (1) {
+		g_reverse_semaphore_up(scribl_exit_semaphore);
 		g_get_current_time(&ts);
 
 		/* Lock the global counter list. No new counters may be created while
@@ -187,7 +189,11 @@ gpointer event_worker(gpointer data)
 			time_elapsed += G_USEC_PER_SEC * (te.tv_sec - ts.tv_sec - 1);
 		}
 
-		/* Sleep, wake up when it's time to flush data again. */
+		/* Sleep, wake up when it's time to flush data again. The exit semaphore
+		 * is released during sleep. */
+		g_reverse_semaphore_down(scribl_exit_semaphore);
 		g_usleep(sleep_duration - time_elapsed);
 	}
+
+	return NULL;
 }

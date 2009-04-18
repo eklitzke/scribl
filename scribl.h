@@ -19,8 +19,8 @@ void scribl_init();
 void scribl_exit();
 
 struct scribl_counter* scribl_new_counter();
-void scribl_incr_counter(struct scribl_counter *counter, char *key);
-guint scribl_lookup_counter(struct scribl_counter *counter, char *key);
+void scribl_incr_counter(struct scribl_counter *counter, char *key, double incr);
+double scribl_lookup_counter(struct scribl_counter *counter, char *key);
 void scribl_replace_counter_ev(struct scribl_counter *counter);
 void scribl_free_counter(struct scribl_counter *counter);
 

@@ -4,19 +4,21 @@
 
 int main(int argc, char **argv)
 {
+	int i;
 	struct scribl_counter *counter;
 
 	scribl_init();
 	counter = scribl_new_counter();
 
-	while (1) {
-		puts("incrementing foo:bar from main thread");
-		scribl_incr_counter(counter, "foo:bar");
+	for (i = 0; i < 10; i++) {
+		printf("incrementing foo:bar from main thread, i = %d\n", i);
+		scribl_incr_counter(counter, "foo:bar", 1);
 		sleep(1);
 	}
 
 	/* Not reached */
 	scribl_free_counter(counter);
 	scribl_exit();
+	return 0;
 }
 
