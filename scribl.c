@@ -18,8 +18,10 @@ GReverseSemaphore *scribl_exit_semaphore = NULL;
  * This method must be called before calling any other methods exposed by
  * scribl. It must only be called once.
  */
-void scribl_init()
+void scribl_init(double wakeup_interval)
 {
+	double *wake_interval_ptr;
+
 	if (!g_thread_supported())
 		g_thread_init (NULL);
 	scribl_exit_semaphore = g_reverse_semaphore_create();
@@ -28,7 +30,8 @@ void scribl_init()
 	counter_list = g_slist_alloc();
 
 	/* Spawn a new event-loop thread. */
-	g_thread_create(event_loop_worker, NULL, 0, NULL);
+	wake_interval_ptr = g_slice_copy(sizeof(double), &wakeup_interval);
+	g_thread_create(event_loop_worker, wake_interval_ptr, 0, NULL);
 }
 
 void scribl_exit()
@@ -173,7 +176,7 @@ gpointer serialize_ht(gpointer data)
 /* This represents a thread that occasionally serializes data structures. */
 static gpointer event_loop_worker(gpointer data)
 {
-	gulong sleep_duration = 5 * G_USEC_PER_SEC;
+	gulong sleep_duration;
 	gulong time_elapsed;
 	GHashTable *new_ht, *old_ht;
 	GSList *element;
@@ -186,6 +189,9 @@ static gpointer event_loop_worker(gpointer data)
 
 	/* The start and end time, used for timing the loop. */
 	GTimeVal ts, te;
+
+	sleep_duration = (gulong) (*((double *) data) * G_USEC_PER_SEC);
+	g_slice_free(double, data);
 
 	/* Wait for the sleep duration before entering the loop, to avoid racing
 	 * with code that creates counters immediately after invoking
@@ -241,6 +247,7 @@ static gpointer event_loop_worker(gpointer data)
 		/* Sleep, wake up when it's time to flush data again. The exit semaphore
 		 * is released during sleep. */
 		g_reverse_semaphore_down(scribl_exit_semaphore);
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event thread sleeping for %ld microseconds", sleep_duration - time_elapsed);
 		g_usleep(sleep_duration - time_elapsed);
 	}
 

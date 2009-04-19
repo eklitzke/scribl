@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 	int i;
 	struct scribl_counter *counter;
 
-	scribl_init();
+	scribl_init(3);
 	counter = scribl_new_counter("test");
 
 	for (i = 0; i < 10; i++) {

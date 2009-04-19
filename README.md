@@ -13,9 +13,9 @@ Goals for 0.01
 
 * Minimal dependencies -- just glib
 * Full thread-safety
+* Only floating point (double precision) counters are supported
 * Only two-level string counters are supported
-* Only integer and double counters are supported
-* Event-based threaded serialization
+* Time-based threaded serialization
 * Performance is *not* a goal
 
 Compiling & Dependencies
@@ -28,10 +28,11 @@ on OS X and Windows (although the developer only has access to Linux for now).
 
 To build scribl you'll also want to have
 [pkg-config](http://pkg-config.freedesktop.org/) installed, although strictly
-speaking this is not necessary. On Fedora, you'll want the following two
-packages:
+speaking this is not necessary. On Fedora, you'll want the following packages:
 
+* gcc
 * glib2-devel
+* make
 * pkgconfig
 
 To compile and build scribl, just execute `make`.

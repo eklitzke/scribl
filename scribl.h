@@ -16,7 +16,7 @@ struct scribl_counter {
 	char *name; /**< The name of the counter (NULL is ok). */
 };
 
-void scribl_init();
+void scribl_init(double wakeup_interval);
 void scribl_exit();
 
 struct scribl_counter* scribl_new_counter();
