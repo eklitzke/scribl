@@ -3,6 +3,7 @@
 
 #include <glib.h>
 #include <stdio.h>
+#include <string.h>
 
 static gpointer serialize_ht(gpointer data);
 static gpointer event_loop_worker(gpointer data);
@@ -43,11 +44,12 @@ static void val_guint_free(gpointer data)
 	g_slice_free(guint, data);
 }
 
-struct scribl_counter* scribl_new_counter()
+struct scribl_counter* scribl_new_counter(const char *name)
 {
 	struct scribl_counter *counter;
 	
 	counter = g_slice_alloc(sizeof(struct scribl_counter));
+	counter->name = g_strdup(name);
 	counter->ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, val_guint_free);
 	counter->lock = g_mutex_new();
 
@@ -97,6 +99,8 @@ void scribl_free_counter(struct scribl_counter *counter)
 	g_mutex_unlock(counter_list_access);
 
 	g_mutex_lock(counter->lock);
+	if (counter->name)
+		g_free(counter->name);
 	g_hash_table_destroy(counter->ht);
 	/* FIXME: is this correct? */
 	g_mutex_unlock(counter->lock);
@@ -118,14 +122,51 @@ double scribl_lookup_counter(struct scribl_counter *counter, char *key)
 
 gpointer serialize_ht(gpointer data)
 {
+	GHashTable *tbl;
 	GHashTableIter iter;
+	GTimeVal tv;
 	gpointer key, value;
+	gpointer **arr = data;
+	int err;
 
-	g_hash_table_iter_init(&iter, (GHashTable *) data);
+	FILE *log_file;
+
+	gchar *data_name;
+	char *fname;
+
+	data_name = (char *) arr[0];
+	tbl = (GHashTable *) arr[1];
+
+	fname = g_slice_alloc(32 + strlen(data_name));
+
+	g_get_current_time(&tv);
+
+	if (data_name != NULL)
+		err = sprintf(fname, "scribl-%s-%ld.log", data_name, tv.tv_sec);
+	else
+		err = sprintf(fname, "scribl-%ld.log", tv.tv_sec);
+
+	if (err < 0)
+		perror("sprintf");
+
+	log_file = fopen(fname, "w");
+	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, "Serializing GHashTable at %p to %s", data, fname);
+	g_slice_free1(100, fname);
+	g_assert(log_file != NULL);
+
+	g_hash_table_iter_init(&iter, tbl);
+
 	while (g_hash_table_iter_next(&iter, &key, &value)) {
-		printf("serializing %p: %s -> %1.2f\n", data, (char *) key, *((double *) value));
+		if (fprintf(log_file, "%s %f\n", (char *) key, *((double *) value)) < 0) {
+			perror("fprintf");
+		}
 	}
-	g_hash_table_destroy((GHashTable *) data);
+
+	if (fclose(log_file) != 0)
+		perror("fclose");
+	g_hash_table_destroy(tbl);
+	g_free(data_name);
+
 	return NULL;
 }
 
@@ -136,6 +177,11 @@ static gpointer event_loop_worker(gpointer data)
 	gulong time_elapsed;
 	GHashTable *new_ht, *old_ht;
 	GSList *element;
+
+	/* Serialization things */
+	gpointer serialize_data[2];
+	gchar *ser_name;
+
 	struct scribl_counter *counter;
 
 	/* The start and end time, used for timing the loop. */
@@ -169,10 +215,13 @@ static gpointer event_loop_worker(gpointer data)
 			g_mutex_lock(counter->lock);
 			old_ht = counter->ht;
 			counter->ht = new_ht;
+			ser_name = g_strdup(counter->name);
 			g_mutex_unlock(counter->lock);
 
 			/* Spawn a serialization thread. */
-			g_thread_create(serialize_ht, old_ht, FALSE, NULL);
+			serialize_data[0] = ser_name;
+			serialize_data[1] = old_ht;
+			g_thread_create(serialize_ht, serialize_data, FALSE, NULL);
 		}
 
 		g_mutex_unlock(counter_list_access);

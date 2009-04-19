@@ -13,6 +13,7 @@ struct scribl_counter {
 	GHashTable *ht; /**< The hash table itself. */
 	GMutex *lock; /**< Mutex used to lock access to ht. */
 	GMutex *swlock; /**< NOT YET USED */
+	char *name; /**< The name of the counter (NULL is ok). */
 };
 
 void scribl_init();
