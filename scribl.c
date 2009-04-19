@@ -46,9 +46,9 @@ void scribl_exit()
 	/* TODO? notify the event-loop of impending doom. */
 }
 
-static void val_guint_free(gpointer data)
+static void ht_val_free(gpointer data)
 {
-	g_slice_free(guint, data);
+	g_slice_free(double, data);
 }
 
 struct scribl_counter* scribl_new_counter(const char *name)
@@ -57,7 +57,7 @@ struct scribl_counter* scribl_new_counter(const char *name)
 	
 	counter = g_slice_alloc(sizeof(struct scribl_counter));
 	counter->name = g_strdup(name);
-	counter->ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, val_guint_free);
+	counter->ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, ht_val_free);
 	counter->lock = g_mutex_new();
 
 	/* Add the list to the global counter list */
@@ -82,7 +82,7 @@ static gpointer get_val_ptr(struct scribl_counter *counter, char *key)
 	val = g_hash_table_lookup(counter->ht, key);
 	if (val == NULL) {
 		key_cpy = g_strdup(key);
-		val = g_slice_alloc0(sizeof(guint));
+		val = g_slice_alloc0(sizeof(double));
 		g_hash_table_insert(counter->ht, key_cpy, val);
 	}
 	return val;
