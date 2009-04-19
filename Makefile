@@ -12,6 +12,7 @@ test: test.c scribl.o reverse_sem.o
 clean:
 	-rm -f *.o
 	-rm -f test
+	-rm -f scribl-*.log
 
 doc:
 	doxygen doc/Doxyfile

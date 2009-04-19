@@ -2,6 +2,7 @@ test
 *.o
 doc/html/
 doc/latex/
+scribl-*.log
 # Emacs crap below
 *~
 .#*
