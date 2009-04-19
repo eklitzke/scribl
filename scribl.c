@@ -130,6 +130,7 @@ gpointer serialize_ht(gpointer data)
 	GTimeVal tv;
 	gpointer key, value;
 	gpointer **arr = data;
+	size_t fname_len;
 	int err;
 
 	FILE *log_file;
@@ -139,8 +140,10 @@ gpointer serialize_ht(gpointer data)
 
 	data_name = (char *) arr[0];
 	tbl = (GHashTable *) arr[1];
+	g_slice_free1(2 * sizeof(gpointer), data);
 
-	fname = g_slice_alloc(32 + strlen(data_name));
+	fname_len = 32 + strlen(data_name);
+	fname = g_slice_alloc(fname_len);
 
 	g_get_current_time(&tv);
 
@@ -154,7 +157,7 @@ gpointer serialize_ht(gpointer data)
 
 	log_file = fopen(fname, "w");
 	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, "Serializing GHashTable at %p to %s", data, fname);
-	g_slice_free1(100, fname);
+	g_slice_free1(fname_len, fname);
 	g_assert(log_file != NULL);
 
 	g_hash_table_iter_init(&iter, tbl);
@@ -182,7 +185,7 @@ static gpointer event_loop_worker(gpointer data)
 	GSList *element;
 
 	/* Serialization things */
-	gpointer serialize_data[2];
+	gpointer *serialize_data;
 	gchar *ser_name;
 
 	struct scribl_counter *counter;
@@ -225,6 +228,7 @@ static gpointer event_loop_worker(gpointer data)
 			g_mutex_unlock(counter->lock);
 
 			/* Spawn a serialization thread. */
+			serialize_data = g_slice_alloc(2 * sizeof(gpointer));
 			serialize_data[0] = ser_name;
 			serialize_data[1] = old_ht;
 			g_thread_create(serialize_ht, serialize_data, FALSE, NULL);
