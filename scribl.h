@@ -19,7 +19,7 @@ struct scribl_counter {
 void scribl_init(double wakeup_interval);
 void scribl_exit(void);
 
-struct scribl_counter* scribl_new_counter(void);
+struct scribl_counter* scribl_new_counter(const char *name);
 void scribl_incr_counter(struct scribl_counter *counter, char *key, double incr);
 double scribl_lookup_counter(struct scribl_counter *counter, char *key);
 void scribl_replace_counter_ev(struct scribl_counter *counter);
