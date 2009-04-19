@@ -8,7 +8,7 @@ int main(int argc, char **argv)
 	struct scribl_counter *counter;
 
 	scribl_init();
-	counter = scribl_new_counter();
+	counter = scribl_new_counter("test");
 
 	for (i = 0; i < 10; i++) {
 		printf("incrementing foo:bar from main thread, i = %d\n", i);
