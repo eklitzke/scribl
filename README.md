@@ -39,4 +39,10 @@ speaking this is not necessary. On Fedora, you'll want the following packages:
 * make
 * pkgconfig
 
-To compile and build scribl, just execute `make`.
+To compile and build scribl, just invoke `make`.
+
+Known Bugs And TODO Items
+-------------------------
+
+These are currently being tracked in GitHub, see
+<http://github.com/eklitzke/scribl/issues>
