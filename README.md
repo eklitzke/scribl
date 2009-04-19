@@ -18,7 +18,6 @@ Goals for 0.01
 * Minimal dependencies -- just glib
 * Full thread-safety
 * Only floating point (double precision) counters are supported
-* Only two-level string counters are supported
 * Time-based threaded serialization
 * Performance is *not* a goal
 
@@ -41,8 +40,8 @@ speaking this is not necessary. On Fedora, you'll want the following packages:
 
 To compile and build scribl, just invoke `make`.
 
-Known Bugs And TODO Items
--------------------------
+Known Bugs & TODO Items
+-----------------------
 
 These are currently being tracked in GitHub, see
 <http://github.com/eklitzke/scribl/issues>

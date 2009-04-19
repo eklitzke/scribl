@@ -1,5 +1,6 @@
 #include "scribl.h"
 #include "reverse_sem.h"
+#include "logging.h"
 
 #include <glib.h>
 #include <stdio.h>
@@ -24,6 +25,9 @@ void scribl_init(double wakeup_interval)
 
 	if (!g_thread_supported())
 		g_thread_init (NULL);
+
+	g_log_set_default_handler(scribl_logfunc, NULL);
+
 	scribl_exit_semaphore = g_reverse_semaphore_create();
 
 	counter_list_access = g_mutex_new();
