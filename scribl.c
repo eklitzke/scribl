@@ -119,13 +119,35 @@ double scribl_lookup_counter(struct scribl_counter *counter, char *key)
 gpointer serialize_ht(gpointer data)
 {
 	GHashTableIter iter;
+	GTimeVal tv;
 	gpointer key, value;
 
+	FILE *log_file;
+
+	char *fname = g_slice_alloc(100);
+
+	g_get_current_time(&tv);
+
+	if (sprintf(fname, "scribl-%d.log", tv.tv_sec) < 0)
+		perror("sprintf");
+	log_file = fopen(fname, "w");
+	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, "Serializing GHashTable at %p to %s", data, fname);
+	g_slice_free1(100, fname);
+	g_assert(log_file != NULL);
+
 	g_hash_table_iter_init(&iter, (GHashTable *) data);
+
 	while (g_hash_table_iter_next(&iter, &key, &value)) {
-		printf("serializing %p: %s -> %1.2f\n", data, (char *) key, *((double *) value));
+		if (fprintf(log_file, "%s %f\n", (char *) key, *((double *) value)) < 0) {
+			perror("fprintf");
+		}
+		//printf("serializing %p: %s -> %1.2f\n", data, (char *) key, *((double *) value));
 	}
+
+	if (fclose(log_file) != 0)
+		perror("fclose");
 	g_hash_table_destroy((GHashTable *) data);
+
 	return NULL;
 }
 
