@@ -1,0 +1,46 @@
+diff --git a/memcached.c b/memcached.c
+index 4d2bd98..4ad9032 100644
+--- a/memcached.c
++++ b/memcached.c
+@@ -14,6 +14,7 @@
+  *      Brad Fitzpatrick <brad@danga.com>
+  */
+ #include "memcached.h"
++#include "scribl.h"
+ #include <sys/stat.h>
+ #include <sys/socket.h>
+ #include <sys/un.h>
+@@ -110,6 +111,7 @@ time_t process_started;     /* when the process was started */
+ /** file scope variables **/
+ static conn *listen_conn = NULL;
+ static struct event_base *main_base;
++static struct scribl_counter *update_counter;
+ 
+ enum transmit_result {
+     TRANSMIT_COMPLETE,   /** All done writing. */
+@@ -2409,6 +2411,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
+ 
+     key = tokens[KEY_TOKEN].value;
+     nkey = tokens[KEY_TOKEN].length;
++    scribl_incr_counter(update_counter, key, 1);
+ 
+     if (! (safe_strtoul(tokens[2].value, (uint32_t *)&flags)
+            && safe_strtol(tokens[3].value, &exptime_int)
+@@ -4130,6 +4133,8 @@ int main (int argc, char **argv) {
+     assoc_init();
+     conn_init();
+     slabs_init(settings.maxbytes, settings.factor, preallocate);
++    scribl_init(5);
++    update_counter = scribl_new_counter("memcached_set");
+ 
+     /*
+      * ignore SIGPIPE signals; we can use errno == EPIPE if we
+@@ -4202,6 +4207,8 @@ int main (int argc, char **argv) {
+ 
+     stop_assoc_maintenance_thread();
+ 
++    scribl_exit();
++
+     /* remove the PID file if we're a daemon */
+     if (do_daemonize)
+         remove_pidfile(pid_file);
