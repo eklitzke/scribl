@@ -18,9 +18,9 @@ The key thing to take away from this example is how minimal the patch against
 memcached really is. For only six additional lines of code we're able to count
 statistics about update operations in memcached. Additionally,
 
-* this is fully threadsafe, running memcached in threaded mode works fine
+* this is fully threadsafe; running memcached in threaded mode works fine
 * memcached commands are still O(1), since the scribl increment operation is
   O(1)
-* logging/serialization is automatically happening in separate threads, which
-  means that these operations don't block memcached (even when memcached itself
-  is only running a single thread)
+* logging/serialization is happens in its own thread, which means that these
+  operations don't block memcached (even if memcached itself is only running a
+  single thread)

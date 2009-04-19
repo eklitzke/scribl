@@ -5,6 +5,10 @@ Scribl is my idea for a system for profiling web servies. My initial hope is to
 be able to use it with memcached; if that's successful it can be used in more
 web-stack services.
 
+You are strongly recommended to look in the `examples` directory, which gives a
+concrete example demonstrating how one would use scribl in a real program, and
+why it's useful.
+
 Currently scribl is in a pre-alpha state, and is only useful for building
 trivial demonstration programs.
 
