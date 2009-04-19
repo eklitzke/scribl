@@ -9,6 +9,7 @@ unique than the full key name), but it illustrates the simplicity of adding
 scribl to an external codebase.
 
 This example consists of two files:
-* `memcached-set-counter.patch` -- a patch against `memcached.c`
-* `scribl-memcached_set-1240120191.log` -- an example log generated from a
+
+- `memcached-set-counter.patch` a patch against `memcached.c`
+- `scribl-memcached_set-1240120191.log` an example log generated from a
   memcached that was using the aforementioned patch.
