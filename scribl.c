@@ -5,6 +5,7 @@
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 static gpointer serialize_ht(gpointer data);
 static gpointer event_loop_worker(gpointer data);
@@ -14,11 +15,11 @@ static GSList *counter_list;
 
 GReverseSemaphore *scribl_exit_semaphore = NULL;
 
-/**
- * Initialize scribl.
- * This method must be called before calling any other methods exposed by
- * scribl. It must only be called once.
- */
+static GMutex *event_worker_access;
+static GCond *event_worker_cond;
+
+static GThread *event_worker_thd;
+
 void scribl_init(double wakeup_interval)
 {
 	double *wake_interval_ptr;
@@ -29,21 +30,40 @@ void scribl_init(double wakeup_interval)
 	g_log_set_default_handler(scribl_logfunc, NULL);
 
 	scribl_exit_semaphore = g_reverse_semaphore_create();
+	g_assert(scribl_exit_semaphore != NULL);
 
 	counter_list_access = g_mutex_new();
 	counter_list = g_slist_alloc();
 
+	event_worker_cond = g_cond_new();
+	event_worker_access = g_mutex_new();
+
 	/* Spawn a new event-loop thread. */
 	wake_interval_ptr = g_slice_copy(sizeof(double), &wakeup_interval);
-	g_thread_create(event_loop_worker, wake_interval_ptr, 0, NULL);
+	event_worker_thd = g_thread_create(event_loop_worker, wake_interval_ptr, TRUE, NULL);
 }
 
 void scribl_exit()
 {
+	GSList *element;
+
 	g_reverse_semaphore_destroy(scribl_exit_semaphore);
 	scribl_exit_semaphore = NULL;
 
-	/* TODO? notify the event-loop of impending doom. */
+	/* TODO: stop the event loop, using g_cond_timed_wait */
+	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Signaling event worker");
+	g_cond_signal(event_worker_cond);
+	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Joining event thread");
+	g_thread_join(event_worker_thd);
+
+	/* Destroy any outstanding counters. */
+	g_mutex_lock(counter_list_access);
+	for (element = counter_list; (element != NULL) && (element->data != NULL); element = counter_list->next)
+		scribl_free_counter(element->data);
+
+	g_mutex_unlock(counter_list_access);
+	g_mutex_free(counter_list_access);
+	g_slist_free(counter_list);
 }
 
 static void ht_val_free(gpointer data)
@@ -127,7 +147,7 @@ double scribl_lookup_counter(struct scribl_counter *counter, char *key)
 	return (val == NULL) ? 0 : *val;
 }
 
-gpointer serialize_ht(gpointer data)
+static gpointer serialize_ht(gpointer data)
 {
 	GHashTable *tbl;
 	GHashTableIter iter;
@@ -183,8 +203,8 @@ gpointer serialize_ht(gpointer data)
 /* This represents a thread that occasionally serializes data structures. */
 static gpointer event_loop_worker(gpointer data)
 {
-	gulong sleep_duration;
-	gulong time_elapsed;
+	glong sleep_duration, sd;
+	glong time_elapsed;
 	GHashTable *new_ht, *old_ht;
 	GSList *element;
 
@@ -197,13 +217,13 @@ static gpointer event_loop_worker(gpointer data)
 	/* The start and end time, used for timing the loop. */
 	GTimeVal ts, te;
 
-	sleep_duration = (gulong) (*((double *) data) * G_USEC_PER_SEC);
+	sleep_duration = (glong) (*((double *) data)) * G_USEC_PER_SEC;
 	g_slice_free(double, data);
 
 	/* Wait for the sleep duration before entering the loop, to avoid racing
 	 * with code that creates counters immediately after invoking
 	 * scribl_init. */
-	g_usleep(sleep_duration);
+	//FIXME
 
 	while (1) {
 		g_reverse_semaphore_up(scribl_exit_semaphore);
@@ -240,6 +260,11 @@ static gpointer event_loop_worker(gpointer data)
 
 		g_mutex_unlock(counter_list_access);
 
+		if (scribl_exit_semaphore == NULL) {
+			g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Breaking early");
+			break;
+		}
+
 		g_get_current_time(&te);
 
 		/* Since the work done by this thread should be done quickly, it's
@@ -251,12 +276,28 @@ static gpointer event_loop_worker(gpointer data)
 			time_elapsed += te.tv_usec;
 			time_elapsed += G_USEC_PER_SEC * (te.tv_sec - ts.tv_sec - 1);
 		}
+		g_assert(time_elapsed > 0);
+		sd = sleep_duration - time_elapsed;
+		g_assert(sd > 0);
 
 		/* Sleep, wake up when it's time to flush data again. The exit semaphore
 		 * is released during sleep. */
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event thread downing semaphore");
 		g_reverse_semaphore_down(scribl_exit_semaphore);
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event thread sleeping for %ld microseconds", sleep_duration - time_elapsed);
-		g_usleep(sleep_duration - time_elapsed);
+
+		g_get_current_time(&te);
+		g_time_val_add(&te, sd);
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event thread waiting until %ld : %ld microseconds", te.tv_sec, te.tv_usec);
+
+		/* g_mutex_lock(event_worker_access); */
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Locked the access");
+		if (g_cond_timed_wait(event_worker_cond, event_worker_access, &te) == TRUE) {
+			g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event worker condition was signaled");
+			if (scribl_exit_semaphore == NULL)
+				break;
+		}
+		g_assert(scribl_exit_semaphore != NULL);
+		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Done waiting");
 	}
 
 	return NULL;

@@ -10,7 +10,7 @@ logging.o: logging.h logging.c
 	gcc -g -Wall -c logging.c $$(pkg-config --cflags glib-2.0)
 
 test: test.c scribl.o reverse_sem.o logging.o
-	gcc -g -Wall -o test test.c $$(pkg-config glib-2.0 --cflags --libs) $$(pkg-config --libs gthread-2.0) scribl.o reverse_sem.o logging.o
+	gcc -g -Wall -o test test.c -lm $$(pkg-config glib-2.0 --cflags --libs) $$(pkg-config --libs gthread-2.0) scribl.o reverse_sem.o logging.o
 
 clean:
 	-rm -f *.o
