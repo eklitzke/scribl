@@ -7,13 +7,15 @@
 #include <string.h>
 #include <math.h>
 
+#define CHECK_ELEMENT(e) ((e != NULL) && (e->data != NULL))
+
 static gpointer serialize_ht(gpointer data);
 static gpointer event_loop_worker(gpointer data);
 
 static GMutex *counter_list_access;
 static GSList *counter_list;
 
-GReverseSemaphore *scribl_exit_semaphore = NULL;
+static GReverseSemaphore *scribl_exit_semaphore = NULL;
 
 static GMutex *event_worker_access;
 static GCond *event_worker_cond;
@@ -50,12 +52,13 @@ void scribl_exit()
 	g_reverse_semaphore_destroy(scribl_exit_semaphore);
 	scribl_exit_semaphore = NULL;
 
+	/* Signal the event worker to end, and join it */
 	g_cond_signal(event_worker_cond);
 	g_thread_join(event_worker_thd);
 
 	/* Destroy any outstanding counters. */
 	g_mutex_lock(counter_list_access);
-	for (element = counter_list; (element != NULL) && (element->data != NULL); element = counter_list->next)
+	for (element = counter_list; CHECK_ELEMENT(element); element = counter_list->next)
 		scribl_free_counter(element->data);
 
 	g_mutex_unlock(counter_list_access);
@@ -220,9 +223,9 @@ static gpointer event_loop_worker(gpointer data)
 	/* Wait for the sleep duration before entering the loop, to avoid racing
 	 * with code that creates counters immediately after invoking
 	 * scribl_init. */
-	//FIXME
+	/* FIXME */
 
-	while (1) {
+	while (TRUE) {
 		g_reverse_semaphore_up(scribl_exit_semaphore);
 		g_get_current_time(&ts);
 
@@ -236,7 +239,7 @@ static gpointer event_loop_worker(gpointer data)
 		 * locking. */
 		g_mutex_lock(counter_list_access);
 
-		for (element = counter_list; (element != NULL) && (element->data != NULL); element = counter_list->next) {
+		for (element = counter_list; CHECK_ELEMENT(element); element = counter_list->next) {
 			counter = (struct scribl_counter *) element->data;
 
 			new_ht = g_hash_table_new(g_str_hash, g_str_equal);
