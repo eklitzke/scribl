@@ -50,10 +50,7 @@ void scribl_exit()
 	g_reverse_semaphore_destroy(scribl_exit_semaphore);
 	scribl_exit_semaphore = NULL;
 
-	/* TODO: stop the event loop, using g_cond_timed_wait */
-	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Signaling event worker");
 	g_cond_signal(event_worker_cond);
-	g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Joining event thread");
 	g_thread_join(event_worker_thd);
 
 	/* Destroy any outstanding counters. */
@@ -282,22 +279,21 @@ static gpointer event_loop_worker(gpointer data)
 
 		/* Sleep, wake up when it's time to flush data again. The exit semaphore
 		 * is released during sleep. */
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event thread downing semaphore");
 		g_reverse_semaphore_down(scribl_exit_semaphore);
 
 		g_get_current_time(&te);
 		g_time_val_add(&te, sd);
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event thread waiting until %ld : %ld microseconds", te.tv_sec, te.tv_usec);
 
-		/* g_mutex_lock(event_worker_access); */
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Locked the access");
+		g_mutex_lock(event_worker_access);
 		if (g_cond_timed_wait(event_worker_cond, event_worker_access, &te) == TRUE) {
 			g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Event worker condition was signaled");
-			if (scribl_exit_semaphore == NULL)
+			if (scribl_exit_semaphore == NULL) {
+				g_mutex_unlock(event_worker_access);
 				break;
+			}
 		}
+		g_mutex_unlock(event_worker_access);
 		g_assert(scribl_exit_semaphore != NULL);
-		g_log(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Done waiting");
 	}
 
 	return NULL;
