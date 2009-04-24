@@ -38,6 +38,10 @@ speaking this is not necessary. On Fedora, you'll want the following packages:
 * make
 * pkgconfig
 
+On Ubuntu (as of 9.04), the only package you should need to install is
+`libglib2.0-dev`. Everything else should be installed as part of the regular
+desktop installation.
+
 To compile and build scribl, just invoke `make`.
 
 Known Bugs & TODO Items
